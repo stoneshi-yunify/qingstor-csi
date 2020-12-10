@@ -95,9 +95,14 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		klog.Errorf("Failed to create volume %s, contentSource %s, error: %v", volumeName, req.GetVolumeContentSource(), createError)
 		return nil, status.Error(codes.Internal, createError.Error())
 	}
+	createVolume, err := s.storageProvider.FindVolume(createVolumeID)
+	if err != nil {
+		klog.Errorf("Volume with ID %s does not exist, error: %v", createVolumeID, err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 	csiVolume := &csi.Volume{
 		VolumeId:      createVolumeID,
-		CapacityBytes: requiredSizeByte,
+		CapacityBytes: createVolume.CapacityBytes,
 		VolumeContext: req.GetParameters(),
 		ContentSource: req.GetVolumeContentSource(),
 	}
