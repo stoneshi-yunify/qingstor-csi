@@ -113,6 +113,12 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 
 			return nil, status.Error(codes.Internal, err.Error())
 		}
+
+		// query volume after resize
+		createdVolume, err = s.storageProvider.FindVolume(createVolumeID)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 
 	csiVolume := &csi.Volume{
