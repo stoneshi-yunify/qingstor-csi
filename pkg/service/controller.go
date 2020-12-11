@@ -98,7 +98,6 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 
 	createdVolume, err := s.storageProvider.FindVolume(createVolumeID)
 	if err != nil {
-		klog.Errorf("Volume with ID %s does not exist, error: %v", createVolumeID, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -106,14 +105,19 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	if requiredSizeByte > createdVolume.CapacityBytes {
 		err = s.storageProvider.ResizeVolume(createVolumeID, requiredSizeByte)
 		if err != nil {
-			klog.Errorf("Failed to resize volume with ID %s, error: %v", createVolumeID, err)
+			// resize failed, delete the volume
+			deleteErr := s.storageProvider.DeleteVolume(createVolumeID)
+			if deleteErr != nil {
+				return nil, status.Error(codes.Internal, deleteErr.Error())
+			}
+
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 
 	csiVolume := &csi.Volume{
 		VolumeId:      createVolumeID,
-		CapacityBytes: requiredSizeByte,
+		CapacityBytes: createdVolume.CapacityBytes,
 		VolumeContext: req.GetParameters(),
 		ContentSource: req.GetVolumeContentSource(),
 	}
